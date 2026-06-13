@@ -17,6 +17,18 @@ app.use(express.json());
 
 // In-memory data store seeded with robust default listings
 let jobs: JobPosting[] = [...INITIAL_JOBS];
+let lastServerReset = Date.now();
+
+function checkAndAutoRefreshJobs(): boolean {
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  if (Date.now() - lastServerReset > ONE_DAY_MS) {
+    jobs = [...INITIAL_JOBS];
+    lastServerReset = Date.now();
+    console.log('[Auto-Refresh Engine] Server-side jobs list reset to pristine database seed (24 hours elapsed).');
+    return true;
+  }
+  return false;
+}
 
 const resolveMx = promisify(dns.resolveMx);
 
@@ -243,6 +255,7 @@ function getExperienceLevel(title: string): 'Entry Level' | 'Mid Level' | 'Senio
 
 // 1. Get Aggregator Jobs with advanced search and filtering
 app.get('/api/jobs', (req, res) => {
+  checkAndAutoRefreshJobs();
   const { location, search, experience } = req.query;
   let filteredJobs = [...jobs];
 
@@ -321,6 +334,7 @@ app.post('/api/jobs/:id/delete', (req, res) => {
 
 // 4. API Endpoint to retrieve stats
 app.get('/api/stats', (req, res) => {
+  checkAndAutoRefreshJobs();
   const total = jobs.length;
   const kochi = jobs.filter((j) => j.location === 'Kochi').length;
   const bangalore = jobs.filter((j) => j.location === 'Bangalore').length;
@@ -454,6 +468,150 @@ app.post('/api/jobs/:id/validate', async (req, res) => {
     job.validation_error = err.message || 'SMTP Handshake error';
     res.status(500).json({ error: 'Verification procedure failed' });
   }
+});
+
+const DEFAULT_BEN_BINOY_RESUME = `BEN BINOY
+AI/ML Developer
+Kochi, Kerala — +91 8078941192
+benbinoy1192@gmail.com — linkedin.com/in/ben-binoy-50287b26a — github.com/benbinoy
+
+SUMMARY
+Passionate AI/ML Developer with a strong foundation in predictive analytics, NLP, and Computer Vision. Dedicated to building scalable, high-quality data solutions that drive sustained business value.
+
+SKILLS
+Languages & Databases: Python, SQL (MySQL), MongoDB
+Deep Learning & AI: TensorFlow, Keras, PyTorch, CNNs
+NLP: Hugging Face Transformers, BERT, NLTK, Text Vectorizers, LLM
+Computer Vision: OpenCV, MediaPipe (Face Mesh, Iris/Face Landmarker), YOLO
+Data Engineering & Pipelines: Apache Kafka, Snowflake, Amazon Redshift, ETL Pipelines, Data cleaning, feature engineering
+ML Libraries: scikit-learn, pandas, NumPy, Matplotlib, Seaborn
+Tools & Visualization: Git, GitHub, VS Code, Tableau, Power BI
+Soft Skills: Problem-Solving, Logical Thinking, Continuous Learning
+
+EXPERIENCE
+Junior AI Engineer — Strokx Technologies (February 2026-Present)
+- Developed and deployed end-to-end AI/ML pipelines integrating data ingestion, preprocessing, model training, and inference using Python and cloud-based platforms.
+- Collaborated with cross-functional teams to design and maintain scalable data architectures leveraging tools such as Apache Kafka and Snowflake.
+- Conducted exploratory data analysis (EDA), feature engineering, and model evaluation on structured datasets.
+
+Data Science Intern — Smec Technologies (December 2025-January 2025)
+- Assisted in collecting, cleaning, and preprocessing large structured and unstructured datasets using Python (Pandas, NumPy).
+- Built and evaluated machine learning models for classification and regression tasks.
+- Created interactive dashboards and data visualizations using Power BI or Matplotlib.
+
+PROJECTS
+Gesture-Controlled Web Navigation System: Python, TensorFlow, MediaPipe, OpenCV, PyAutoGUI
+- Real-time gesture-based human-computer interaction using hand landmark detection.
+Reddit Post Sentiment Stance Analysis: Python, BERT (Transformers), PyTorch, pandas, NumPy
+- BERT-based NLP system to classify Reddit comments by sentiment and stance blocks.
+ASL Alphabet Interpreter: Python, TensorFlow, Keras, OpenCV, NumPy
+- Real-time ASL alphabet translator using computer vision to translate hand gestures.
+House Price Prediction Model: Python, scikit-learn, pandas, NumPy, Seaborn
+Cloud Prediction System: Python, scikit-learn, pandas, NumPy
+Grammar Checking Web Application: Python, NLTK, Flask
+
+EDUCATION
+Mar Augustinose College, Ramapuram: BCA (May 2025)
+GHSS Mannathoor, Muvattupuzha: 12th Grade (April 2022)
+Adventure Public School, Muvattupuzha: 10th Grade (April 2022)`;
+
+function generateFallbackCoverLetter(job: any, resumeText: string): string {
+  const name = "Ben Binoy";
+  const title = "AI/ML Developer";
+  const location = "Kochi, Kerala";
+  const phone = "+91 8078941192";
+  const email = "benbinoy1192@gmail.com";
+  
+  const jobTitle = job.job_title;
+  const company = job.company_name;
+  const jobLoc = job.location;
+  
+  let skillParagraph = "";
+  if (jobTitle.toLowerCase().match(/(computer vision|gesture|cv|opencv|mediapipe|yolo|image)/i)) {
+    skillParagraph = "My experience aligning closely with computer vision includes designing a Gesture-Controlled Web Navigation System utilizing MediaPipe, TensorFlow, and OpenCV, as well as building a real-time ASL Alphabet Interpreter. At Strokx Technologies, I developed high-efficiency AI/ML pipelines where model inference and image pre-processing required robust, clean Python architectures.";
+  } else if (jobTitle.toLowerCase().match(/(nlp|language|transformer|text|bert|sentence|generation)/i)) {
+    skillParagraph = "In the domain of Natural Language Processing, I have engineered a BERT-based sentiment and stance analysis engine with contextual summaries, alongside rule-based grammar systems using NLTK. I am deeply familiar with Hugging Face Transformers, text vectorizers, and large language model prompting strategies.";
+  } else if (jobTitle.toLowerCase().match(/(data|pipeline|kafka|snowflake|mlops|engineer|database|sql)/i)) {
+    skillParagraph = "I have a strong background in data engineering and scalable pipelines. During my tenure at Strokx Technologies, I collaborated closely on setting up low-latency streaming pipelines using Apache Kafka and Snowflake, facilitating clean data ingestions. I am proficient in SQL, MongoDB, and constructing reliable ETL processes.";
+  } else {
+    skillParagraph = "With hands-on experience developing predictive analytics, computer vision, and NLP pipelines, I bring a broad toolkit comprising PyTorch, TensorFlow, scikit-learn, and SQL. My professional experience at Strokx Technologies and SMEC Technologies centers on engineering scalable, high-quality data products.";
+  }
+
+  const currentDateStr = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+
+  return `${name}
+${location} | ${phone} | ${email}
+github.com/benbinoy | linkedin.com/in/ben-binoy-50287b26a
+
+${currentDateStr}
+
+To the Hiring Team,
+${company}
+Office Hub: ${jobLoc}, India
+
+Subject: Application for the position of ${jobTitle}
+
+I am writing to express my strong interest in the ${jobTitle} role at ${company} in ${jobLoc}. As an active AI/ML Developer with professional experience in designing scalable pipelines and deep-learning solutions, I am eager to apply my skills to drive digital innovation at your team.
+
+${skillParagraph}
+
+Through my previous roles, including my position as a Junior AI Engineer at Strokx Technologies and Data Science Intern at Smec Technologies, I have matured a robust understanding of the full lifecycle of data collection, model training, validation, and production deployments. I thrive in collaborative engineering squads that challenge assumptions and prioritize high-performance business value.
+
+Thank you for your time and consideration. I welcome the opportunity to discuss how my qualifications align with the needs of ${company} and can be verified to meet your goals.
+
+Sincerely,
+
+${name}
+AI/ML Developer
+${phone} | ${email}`;
+}
+
+// 8. Generate bespoke cover letter
+app.post('/api/jobs/cover-letter', async (req, res) => {
+  const { jobId, resumeText, customInstructions } = req.body;
+  const job = jobs.find((j) => j.id === jobId);
+
+  if (!job) {
+    return res.status(404).json({ error: 'Job posting not found.' });
+  }
+
+  const client = getGeminiClient();
+  const resumeToUse = resumeText || DEFAULT_BEN_BINOY_RESUME;
+
+  if (client) {
+    try {
+      const prompt = `You are a professional hiring advisor in Kochi and Bangalore, India.
+Write a highly compelling, professional, and personalized Cover Letter (covering letter) applying for the position of "${job.job_title}" at "${job.company_name}" located in "${job.location}".
+
+We have the candidate's resume here:
+"""
+${resumeToUse}
+"""
+
+Additional custom user instructions if any: "${customInstructions || 'Create a clean, well-spaced professional cover letter.'}"
+
+Use the specific skills, projects, and experiences of the candidate in the resume (e.g. OpenCV, MediaPipe, BERT, Kafka, Snowflake, Python, Strokx Technologies, Smec Technologies, as relevant) to match the requirements of the job: "${job.job_title}" and its background context "${job.brief_history || ''}".
+
+Draft the letter with:
+- Standard professional layout (including salutation, introductory hook, body highlighting relevant match of experience/skills, and strong closure/call to action).
+- Kept to 3-4 concise, impactful paragraphs.
+- Maintain a highly authentic, human, and professional tone. Do not use AI clichés or fluff. Include contact details from the resume (like Kochi/Kerala, email, and phone) elegantly formatted.
+- Output ONLY the text of the cover letter, styled professionally. Do not include markdown headers or brackets like "[Your Name]". Fill them with candidate's actual details: Ben Binoy, Kochi, India, benbinoy1192@gmail.com, etc.`;
+
+      const response = await client.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: prompt,
+      });
+
+      const coverLetter = response.text || '';
+      return res.json({ coverLetter: coverLetter.trim() });
+    } catch (err: any) {
+      console.warn('Gemini cover letter failed, using fallback generator:', err);
+    }
+  }
+
+  const coverLetter = generateFallbackCoverLetter(job, resumeToUse);
+  res.json({ coverLetter });
 });
 
 // 7. Active Job Web Scraper / Generator using Search Grounding or Contextual Simulation

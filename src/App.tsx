@@ -261,10 +261,14 @@ export default function App() {
         const cached = localStorage.getItem('local_jobs_cache');
         localList = cached ? JSON.parse(cached) : [];
       } catch {}
-      if (localList.length === 0) {
-        const m = await import('./initialJobs');
-        localStorage.setItem('local_jobs_cache', JSON.stringify(m.INITIAL_JOBS));
-        setFilteredLocalJobs(m.INITIAL_JOBS, loc, search, exp);
+      const m = await import('./initialJobs');
+      const hasAllInitialJobs = m.INITIAL_JOBS.every((j) => localList.some((existing) => existing.id === j.id));
+      if (localList.length === 0 || !hasAllInitialJobs) {
+        const existingIds = new Set(localList.map((j) => j.id));
+        const missing = m.INITIAL_JOBS.filter((j) => !existingIds.has(j.id));
+        const updatedList = [...missing, ...localList];
+        localStorage.setItem('local_jobs_cache', JSON.stringify(updatedList));
+        setFilteredLocalJobs(updatedList, loc, search, exp);
       } else {
         setFilteredLocalJobs(localList, loc, search, exp);
       }
@@ -300,10 +304,20 @@ export default function App() {
     }
   };
 
-  // Pre-fetch loop on startup
+  // Pre-fetch loop on startup with automatic 24-hour cache validation
   useEffect(() => {
     const initFetch = async () => {
       setIsPageLoading(true);
+
+      const SYNC_EXPIRE_TIME = 24 * 60 * 60 * 1000;
+      const lastSyncStr = localStorage.getItem('last_jobs_sync_time');
+      const now = Date.now();
+      if (!lastSyncStr || now - parseInt(lastSyncStr, 10) > SYNC_EXPIRE_TIME) {
+        localStorage.removeItem('local_jobs_cache');
+        localStorage.setItem('last_jobs_sync_time', now.toString());
+        console.log('[Auto-Refresh Engine] Client-side cache cleared due to 24-hour expiration.');
+      }
+
       await checkApiConfiguration();
       await fetchStats();
       await fetchJobs('All', '', 'Entry Level');
@@ -311,6 +325,24 @@ export default function App() {
     };
     initFetch();
   }, []);
+
+  // Proactive periodic client-side refresh check every 15 minutes
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const SYNC_EXPIRE_TIME = 24 * 60 * 60 * 1000;
+      const lastSyncStr = localStorage.getItem('last_jobs_sync_time');
+      const now = Date.now();
+      if (lastSyncStr && now - parseInt(lastSyncStr, 10) > SYNC_EXPIRE_TIME) {
+        console.log('[Auto-Refresh Engine] Periodic check: 24 hours elapsed. Refreshing page listings...');
+        localStorage.removeItem('local_jobs_cache');
+        localStorage.setItem('last_jobs_sync_time', now.toString());
+        triggerNotification('Daily Auto-Refresh: Reloading fresh ML/AI vacancies...');
+        await fetchStats();
+        await fetchJobs(selectedLocation, debouncedSearch, selectedExperience);
+      }
+    }, 60000 * 15); // Check every 15 minutes
+    return () => clearInterval(interval);
+  }, [selectedLocation, debouncedSearch, selectedExperience]);
 
   // Sync details when location, search or experience input shifts text
   useEffect(() => {

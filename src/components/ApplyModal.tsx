@@ -11,10 +11,23 @@ interface ApplyModalProps {
 }
 
 export default function ApplyModal({ isOpen, job, onClose, onApplySuccess }: ApplyModalProps) {
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [portfolioUrl, setPortfolioUrl] = useState('');
+  const [fullName, setFullName] = useState(() => localStorage.getItem('app_fullName') || 'Ben Binoy');
+  const [email, setEmail] = useState(() => localStorage.getItem('app_email') || 'benbinoy1192@gmail.com');
+  const [portfolioUrl, setPortfolioUrl] = useState(() => localStorage.getItem('app_portfolioUrl') || 'https://github.com/benbinoy');
   const [fresherBio, setFresherBio] = useState('');
+
+  // Sync inputs to localStorage in real-time when changed
+  React.useEffect(() => {
+    if (fullName) localStorage.setItem('app_fullName', fullName);
+  }, [fullName]);
+
+  React.useEffect(() => {
+    if (email) localStorage.setItem('app_email', email);
+  }, [email]);
+
+  React.useEffect(() => {
+    if (portfolioUrl) localStorage.setItem('app_portfolioUrl', portfolioUrl);
+  }, [portfolioUrl]);
   
   // File state
   const [resumeFile, setResumeFile] = useState<File | null>(null);

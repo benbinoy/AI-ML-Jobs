@@ -1,6 +1,6 @@
 import { JobPosting } from '../types';
-import { Mail, Phone, Clock, FileText, CheckCircle2, ShieldAlert, AlertTriangle, RefreshCw, Terminal, Copy, Check, Send } from 'lucide-react';
-import { useState } from 'react';
+import { Mail, Phone, Clock, FileText, CheckCircle2, ShieldAlert, AlertTriangle, RefreshCw, Terminal, Copy, Check, Send, Sparkles, Edit, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface CompanyProfileProps {
   job: JobPosting | null;
@@ -22,11 +22,83 @@ export default function CompanyProfile({
   onApplyTrigger,
 }: CompanyProfileProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [coverLetter, setCoverLetter] = useState<string>('');
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [customInstructions, setCustomInstructions] = useState<string>('');
+  const [resumeText, setResumeText] = useState<string>(() => {
+    return localStorage.getItem('resume_text_cache') || `BEN BINOY
+AI/ML Developer
+Kochi, Kerala — +91 8078941192
+benbinoy1192@gmail.com — linkedin.com/in/ben-binoy-50287b26a — github.com/benbinoy
+
+Passionate AI/ML Developer with a strong foundation in predictive analytics, NLP, and Computer Vision. Seeking a collaborative environment to solve complex challenges.
+
+SKILLS
+Languages & Databases: Python, SQL (MySQL), MongoDB
+Deep Learning & AI: TensorFlow, Keras, PyTorch, CNNs
+NLP: Hugging Face Transformers, BERT, NLTK, Text Vectorizers, LLM
+Computer Vision: OpenCV, MediaPipe (Face Mesh, Iris/Face Landmarker), YOLO
+Data Engineering & Pipelines: Apache Kafka, Snowflake, Amazon Redshift, ETL Pipelines
+ML Libraries: scikit-learn, pandas, NumPy, Matplotlib, Seaborn
+Tools & Visualization: Git, GitHub, VS Code, Tableau, Power BI
+
+EXPERIENCE
+Junior AI Engineer — Strokx Technologies (Feb 2026-Present)
+- Developed and deployed end-to-end AI/ML pipelines using Python and cloud-based platforms.
+- Collaborated on scalable data architectures using Kafka and Snowflake.
+Data Science Intern — Smec Technologies (Dec 2025-Jan 2025)
+- Assisted in collecting, cleaning, and preprocessing large datasets using Python.
+- Built machine learning models and designed interactive dashboards using Power BI.`;
+  });
+
+  // Sync resume text modifications to localStorage
+  useEffect(() => {
+    localStorage.setItem('resume_text_cache', resumeText);
+  }, [resumeText]);
+
+  const [isResumeEditing, setIsResumeEditing] = useState<boolean>(false);
+  const [isCoverLetterCopied, setIsCoverLetterCopied] = useState<boolean>(false);
+  const [isEditingCoverLetter, setIsEditingCoverLetter] = useState<boolean>(false);
+
+  // Clear generated letter when selected job shifts
+  useEffect(() => {
+    setCoverLetter('');
+    setIsEditingCoverLetter(false);
+  }, [job?.id]);
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
     setCopiedField(fieldName);
     setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const handleGenerateCoverLetter = async () => {
+    if (!job) return;
+    setIsGenerating(true);
+    try {
+      const response = await fetch('/api/jobs/cover-letter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobId: job.id,
+          resumeText: resumeText,
+          customInstructions: customInstructions,
+        }),
+      });
+      const data = await response.json();
+      if (data.coverLetter) {
+        setCoverLetter(data.coverLetter);
+      } else {
+        alert('Failed to generate cover letter.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error connecting to cover letter generation service.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   if (!job) {
@@ -320,6 +392,140 @@ export default function CompanyProfile({
                 )}
               </div>
             )}
+
+            {/* AI Cover Letter Workspace section */}
+            <div className="pt-6 border-t border-zinc-250 space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-600 animate-pulse" />
+                <h4 className="font-display font-bold text-zinc-900 text-sm">
+                  AI Cover Letter Workspace
+                </h4>
+              </div>
+
+              {/* Resume drawer/expander card */}
+              <div className="border border-zinc-200 rounded-xl p-4 bg-zinc-50/50 space-y-3 shadow-inner">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <FileText className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                    <span className="text-[11px] font-bold text-zinc-850 font-mono truncate">
+                      CV: Ben Binoy (AI/ML Developer)
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIsResumeEditing(!isResumeEditing)}
+                    className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-850 underline flex items-center gap-0.5 whitespace-nowrap cursor-pointer hover:no-underline"
+                  >
+                    {isResumeEditing ? 'Hide CV Text' : 'View / Edit CV Text'}
+                  </button>
+                </div>
+
+                {isResumeEditing && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-zinc-500 leading-normal">
+                      We preloaded Ben Binoy's full CV details from the attached resume PDF. Tweak any values below:
+                    </p>
+                    <textarea
+                      rows={6}
+                      value={resumeText}
+                      onChange={(e) => setResumeText(e.target.value)}
+                      className="w-full text-[10.5px] p-2.5 border border-zinc-200 rounded-lg bg-white font-mono text-zinc-700 focus:outline-none focus:border-zinc-950 resize-y"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Custom input prompts/interests */}
+              <div className="space-y-1.5">
+                <label className="font-mono text-[9px] text-zinc-500 font-semibold uppercase tracking-wider block">
+                  Additional Pitch Instructions (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Focus on computer vision / BERT projects, or state readiness to relocate..."
+                  value={customInstructions}
+                  onChange={(e) => setCustomInstructions(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2.5 border border-zinc-200 rounded-xl focus:outline-none focus:border-zinc-950 font-sans placeholder-zinc-400"
+                />
+              </div>
+
+              {/* Trigger Button */}
+              <button
+                onClick={handleGenerateCoverLetter}
+                disabled={isGenerating}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-mono font-bold shadow-md hover:translate-y-[-1px] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                {isGenerating ? 'Drafting bespoke letter via Gemini...' : 'Generate Clean Cover Letter'}
+              </button>
+
+              {/* The Resulting Cover Letter Card */}
+              {coverLetter && (
+                <div className="border border-zinc-200 rounded-xl overflow-hidden shadow-inner bg-zinc-50 space-y-3">
+                  {/* Top toolbar */}
+                  <div className="px-4 py-2.5 bg-zinc-100 border-b border-zinc-200 flex items-center justify-between text-xs font-mono">
+                    <span className="text-zinc-650 font-bold block text-[9px] uppercase tracking-wider">
+                      Tailored Letter Proposal
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setIsEditingCoverLetter(!isEditingCoverLetter)}
+                        className="px-2 py-1 bg-white hover:bg-zinc-100 border border-zinc-250 rounded text-zinc-750 flex items-center gap-1 text-[10px] font-bold cursor-pointer transition-colors"
+                        title={isEditingCoverLetter ? 'Lock Edit Mode' : 'Refine Letter Text'}
+                      >
+                        <Edit className="w-2.5 h-2.5 text-emerald-800" />
+                        <span>{isEditingCoverLetter ? 'Done' : 'Edit'}</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(coverLetter);
+                          setIsCoverLetterCopied(true);
+                          setTimeout(() => setIsCoverLetterCopied(false), 2500);
+                        }}
+                        className="px-2 py-1 bg-white hover:bg-zinc-100 border border-zinc-250 rounded text-zinc-750 flex items-center gap-1 text-[10px] font-bold cursor-pointer transition-colors"
+                        title="Copy to clipboard"
+                      >
+                        {isCoverLetterCopied ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" /> : <Copy className="w-2.5 h-2.5 text-zinc-600" />}
+                        <span>{isCoverLetterCopied ? 'Copied' : 'Copy'}</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const blob = new Blob([coverLetter], { type: 'text/plain;charset=utf-8' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `Cover_Letter_Ben_Binoy_${job.company_name.replace(/[^a-z0-9]/gi, '_')}.txt`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="px-2 py-1 bg-white hover:bg-zinc-100 border border-zinc-250 rounded text-zinc-750 flex items-center gap-1 text-[10px] font-bold cursor-pointer transition-colors"
+                        title="Download text file"
+                      >
+                        <Download className="w-2.5 h-2.5 text-zinc-750" />
+                        <span>Save</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Letter Content Workspace */}
+                  <div className="p-4 focus:outline-none bg-white">
+                    {isEditingCoverLetter ? (
+                      <textarea
+                        rows={12}
+                        value={coverLetter}
+                        onChange={(e) => setCoverLetter(e.target.value)}
+                        className="w-full text-[11px] font-sans text-zinc-800 p-2 border border-zinc-250 rounded-lg focus:outline-none focus:border-zinc-900 bg-zinc-50/25 font-mono resize-y leading-relaxed font-normal"
+                      />
+                    ) : (
+                      <pre className="text-[11px] font-sans text-zinc-800 whitespace-pre-wrap leading-relaxed select-text font-normal max-h-[300px] overflow-y-auto custom-scrollbar">
+                        {coverLetter}
+                      </pre>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
