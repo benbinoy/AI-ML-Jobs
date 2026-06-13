@@ -1,0 +1,6 @@
+{
+  "name": "AI/ML Job Aggregator for Kochi & Bangalore",
+  "description": "Aggregates local AI/ML, DL, and CV job postings, enriches them with company profiles via Gemini, and validates employer emails using realistic DNS and SMTP diagnostics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
