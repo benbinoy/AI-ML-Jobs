@@ -366,7 +366,7 @@ We require:
 Provide the output strictly as a JSON object with fields "brief_history", "contact_number", and "email_id".`;
 
       const response = await client.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-3.1-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -484,7 +484,7 @@ For each position, extract:
 Provide output strictly as a JSON array of objects with the fields specified.`;
 
         const response = await client.models.generateContent({
-          model: 'gemini-3.5-flash',
+          model: 'gemini-3.1-flash-lite',
           contents: systemPrompt,
           config: {
             tools: [{ googleSearch: {} }], // Use Google Search dynamic grounding
